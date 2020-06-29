@@ -5,7 +5,10 @@ import (
 )
 
 // BuildVersion is the current version of Space Cloud
-const BuildVersion = "0.18.0"
+const BuildVersion = "0.18.1"
+
+//DLQEventTriggerPrefix used as suffix for DLQ event trigger
+const DLQEventTriggerPrefix = "dlq_"
 
 const (
 	// One operation returns a single document from the database
@@ -197,7 +200,6 @@ type FieldType struct {
 	FieldNull    string `db:"Null"`
 	FieldKey     string `db:"Key"`
 	FieldDefault string `db:"Default"`
-	FieldExtra   string `db:"Extra"`
 }
 
 // ForeignKeysType is the type for storing  foreignkeys information of sql inspection
@@ -276,8 +278,8 @@ const (
 // SpaceCloudServiceName is the service name space cloud will register itself with in service discovery mechanisms
 const SpaceCloudServiceName string = "space-cloud"
 
-// MakeHTTPRequest makes a http request
-type MakeHTTPRequest func(ctx context.Context, method, url, token, scToken string, params, vPtr interface{}) error
+// TypeMakeHTTPRequest makes a http request
+type TypeMakeHTTPRequest func(ctx context.Context, method, url, token, scToken string, params, vPtr interface{}) error
 
 // GetSecrets gets fileStore and database secrets from runner
 type GetSecrets func(project, secretName, key string) (string, error)

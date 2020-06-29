@@ -177,7 +177,7 @@ func (s *SQL) readexec(ctx context.Context, sqlString string, args []interface{}
 	var rowTypes []*sql.ColumnType
 
 	switch s.GetDBType() {
-	case utils.MySQL, utils.Postgres:
+	case utils.MySQL, utils.Postgres, utils.SQLServer:
 		rowTypes, _ = rows.ColumnTypes()
 	}
 
@@ -194,7 +194,7 @@ func (s *SQL) readexec(ctx context.Context, sqlString string, args []interface{}
 		}
 
 		switch s.GetDBType() {
-		case utils.MySQL, utils.Postgres:
+		case utils.MySQL, utils.Postgres, utils.SQLServer:
 			mysqlTypeCheck(s.GetDBType(), rowTypes, mapping)
 		}
 
@@ -216,7 +216,7 @@ func (s *SQL) readexec(ctx context.Context, sqlString string, args []interface{}
 		}
 
 		switch s.GetDBType() {
-		case utils.MySQL, utils.Postgres:
+		case utils.MySQL, utils.Postgres, utils.SQLServer:
 			mysqlTypeCheck(s.GetDBType(), rowTypes, mapping)
 		}
 
@@ -236,11 +236,11 @@ func (s *SQL) readexec(ctx context.Context, sqlString string, args []interface{}
 				return 0, nil, err
 			}
 			switch s.GetDBType() {
-			case utils.MySQL, utils.Postgres:
+			case utils.MySQL, utils.Postgres, utils.SQLServer:
 				mysqlTypeCheck(s.GetDBType(), rowTypes, mapping)
 			}
 			if isAggregate {
-				funcMap := map[string]map[string]interface{}{}
+				funcMap := map[string]interface{}{}
 				for asColumnName, value := range mapping {
 					functionName, columnName, isAggregateColumn := splitAggregateAsColumnName(asColumnName)
 					if isAggregateColumn {
@@ -249,11 +249,16 @@ func (s *SQL) readexec(ctx context.Context, sqlString string, args []interface{}
 						funcValue, ok := funcMap[functionName]
 						if !ok {
 							// set new function
-							funcMap[functionName] = map[string]interface{}{columnName: value}
+							// NOTE: This case occurs for count function with no column name (using * operator instead)
+							if columnName == "" {
+								funcMap[functionName] = value
+							} else {
+								funcMap[functionName] = map[string]interface{}{columnName: value}
+							}
 							continue
 						}
 						// add new column to existing function
-						funcValue[columnName] = value
+						funcValue.(map[string]interface{})[columnName] = value
 					}
 				}
 				if len(funcMap) > 0 {

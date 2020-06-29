@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -49,11 +50,13 @@ func (s *SQL) update(ctx context.Context, col string, req *model.UpdateRequest, 
 			case "$set", "$inc", "$mul", "$max", "$min", "$currentDate", "$unset":
 				sqlQuery, args, err := s.generateUpdateQuery(ctx, col, req, k)
 				if err != nil {
+					logrus.Println("Update Queryx", sqlQuery)
 					return 0, err
 				}
 				logrus.Debugln("Update Query", sqlQuery)
 				res, err := doExecContext(ctx, sqlQuery, args, executor)
 				if err != nil {
+					logrus.Println("Update Queryxx", sqlQuery, args)
 					return 0, err
 				}
 
@@ -78,8 +81,18 @@ func (s *SQL) update(ctx context.Context, col string, req *model.UpdateRequest, 
 			doc := make(map[string]interface{})
 			dates := make(map[string]interface{})
 			for k, v := range req.Find {
-				for _, newValue := range v.(map[string]interface{}) {
-					doc[k] = newValue
+				if reflect.TypeOf(v).Kind() == reflect.Array {
+					return 0, utils.ErrInvalidParams
+				}
+
+				// implicit equality operator in where e.g -> "id" : "1"
+				if !strings.HasPrefix(k, "$") && reflect.TypeOf(v).Kind() != reflect.Map {
+					doc[k] = v
+					continue
+				}
+
+				for colName, colValue := range v.(map[string]interface{}) {
+					doc[colName] = colValue
 				}
 			}
 			for op := range req.Update {
@@ -88,7 +101,7 @@ func (s *SQL) update(ctx context.Context, col string, req *model.UpdateRequest, 
 					return 0, utils.ErrInvalidParams
 				}
 				if op == "$currentDate" {
-					err := flattenForDate(&m)
+					err := s.flattenForDate(&m)
 					if err != nil {
 						return 0, err
 					}
@@ -152,23 +165,23 @@ func (s *SQL) generateUpdateQuery(ctx context.Context, col string, req *model.Up
 	}
 
 	if op == "$currentDate" {
-		err := flattenForDate(&m)
+		err := s.flattenForDate(&m)
 		if err != nil {
 			return "", nil, err
 		}
 	}
 
-	if op == "$unset" && dbType == string(utils.Postgres) {
-		unsetObj, ok := req.Update[op].(map[string]interface{})
-		if !ok {
-			return "", nil, errors.New("incorrect unset object provided")
-		}
-
-		for k := range unsetObj {
-			arr := strings.Split(k, ".")
-			unsetObj[k] = fmt.Sprintf("{%s}", strings.Join(arr[1:], ","))
-		}
-	}
+	//if op == "$unset" && dbType == string(utils.Postgres) {
+	//	unsetObj, ok := req.Update[op].(map[string]interface{})
+	//	if !ok {
+	//		return "", nil, errors.New("incorrect unset object provided")
+	//	}
+	//
+	//	for k := range unsetObj {
+	//		arr := strings.Split(k, ".")
+	//		unsetObj[k] = fmt.Sprintf("{%s}", strings.Join(arr[1:], ","))
+	//	}
+	//}
 
 	record, err := generateRecord(req.Update[op])
 	if err != nil {
@@ -179,6 +192,7 @@ func (s *SQL) generateUpdateQuery(ctx context.Context, col string, req *model.Up
 	// Generate SQL string and arguments
 	sqlString, args, err := query.Update().Set(record).ToSQL()
 	if err != nil {
+		log.Println("here", err)
 		logrus.Errorf("Error generating update query unable generate sql string - %s", err)
 		return "", nil, err
 	}
@@ -322,7 +336,7 @@ func checkIfNum(v interface{}) (string, error) {
 	return "", errors.New("invalid data format provided")
 }
 
-func flattenForDate(m *map[string]interface{}) error {
+func (s *SQL) flattenForDate(m *map[string]interface{}) error {
 	for k, v := range *m {
 		mm, ok := v.(map[string]interface{})
 		if !ok {
@@ -336,6 +350,10 @@ func flattenForDate(m *map[string]interface{}) error {
 			switch val {
 			case "date":
 				(*m)[k] = "CURRENT_DATE"
+				// CURRENT_DATE is not supported in sql-server
+				if utils.DBType(s.dbType) == utils.SQLServer {
+					(*m)[k] = "CAST( GETDATE() AS date )"
+				}
 			case "timestamp":
 				(*m)[k] = "CURRENT_TIMESTAMP"
 			default:
@@ -369,6 +387,9 @@ func (s *SQL) sanitiseUpdateQuery(sqlString string) string {
 }
 func (s *SQL) sanitiseUpdateQuery2(sqlString string) string {
 
+	// counts number of occurrences of date and time stamps
+	noOfStamps := 0
+
 	for i := 0; i < len(sqlString); i++ {
 
 		if strings.HasPrefix(sqlString[i:], "CURRENT_TIMESTAMP") {
@@ -376,13 +397,34 @@ func (s *SQL) sanitiseUpdateQuery2(sqlString string) string {
 			if sqlString[i] != ' ' && sqlString[i] != ',' {
 				sqlString = sqlString[:i] + sqlString[i+1:]
 			}
+			noOfStamps++
 		}
 		if strings.HasPrefix(sqlString[i:], "CURRENT_DATE") {
 			i += len("CURRENT_DATE")
 			if sqlString[i] != ' ' && sqlString[i] != ',' {
 				sqlString = sqlString[:i] + sqlString[i+1:]
 			}
+			noOfStamps++
+		}
+		if strings.HasPrefix(sqlString[i:], "CAST( GETDATE() AS date )") {
+			i += len("CAST( GETDATE() AS date )")
+			if sqlString[i] != ' ' && sqlString[i] != ',' {
+				sqlString = sqlString[:i] + sqlString[i+1:]
+			}
+			noOfStamps++
+		}
+
+	}
+
+	// reduces the parameter $ and @p value by no. of stamps occurrence
+	if utils.DBType(s.dbType) == utils.Postgres || utils.DBType(s.dbType) == utils.SQLServer {
+		for i := 1; i < len(sqlString); i++ {
+			c, _ := strconv.Atoi(string(sqlString[i]))
+			if c > 1 && (sqlString[i-1] == '$' || (sqlString[i-1] == 'p' && sqlString[i-2] == '@')) {
+				sqlString = sqlString[:i] + strconv.Itoa(c-noOfStamps) + sqlString[i+1:]
+			}
 		}
 	}
+
 	return sqlString
 }
