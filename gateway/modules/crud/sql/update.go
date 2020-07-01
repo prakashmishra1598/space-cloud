@@ -424,6 +424,7 @@ func (s *SQL) sanitiseUpdateQuery2(sqlString string) string {
 				sqlString = sqlString[:i] + strconv.Itoa(c-noOfStamps) + sqlString[i+1:]
 			}
 		}
+
 	}
 
 	return sqlString

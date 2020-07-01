@@ -1163,6 +1163,7 @@ func Test_generateInspection(t *testing.T) {
 			}},
 			wantErr: false,
 		},
+		// postgres
 		{
 			name: "MySQL field col1 with type Boolean, col2 with type Boolean which is not null having multiple index constraint not created through space cloud",
 			args: args{
