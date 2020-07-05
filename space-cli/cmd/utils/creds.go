@@ -6,7 +6,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
 
-	"github.com/spaceuptech/space-cli/cmd/model"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/model"
 )
 
 // getSelectedAccount gets the account information of the selected account

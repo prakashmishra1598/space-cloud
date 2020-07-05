@@ -10,7 +10,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
-	"github.com/spaceuptech/space-cli/cmd/model"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/model"
 )
 
 // AppendConfigToDisk creates a yml file or appends to existing

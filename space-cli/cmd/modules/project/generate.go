@@ -4,8 +4,8 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/segmentio/ksuid"
 
-	"github.com/spaceuptech/space-cli/cmd/model"
-	"github.com/spaceuptech/space-cli/cmd/utils"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/model"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/utils"
 )
 
 func generateProject() (*model.SpecObject, error) {

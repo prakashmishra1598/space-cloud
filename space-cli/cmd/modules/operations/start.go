@@ -10,7 +10,7 @@ import (
 	"github.com/txn2/txeh"
 	"github.com/urfave/cli"
 
-	"github.com/spaceuptech/space-cli/cmd/utils"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/utils"
 )
 
 // ActionStart starts all SC databases, runner, gateway and services

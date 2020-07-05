@@ -5,7 +5,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 
-	"github.com/spaceuptech/space-cli/cmd/model"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/model"
 )
 
 func generateEventingRule() (*model.SpecObject, error) {

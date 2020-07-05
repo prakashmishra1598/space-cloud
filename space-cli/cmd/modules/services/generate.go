@@ -7,9 +7,9 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 
-	"github.com/spaceuptech/space-cli/cmd/model"
-	"github.com/spaceuptech/space-cli/cmd/modules/project"
-	"github.com/spaceuptech/space-cli/cmd/utils"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/model"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/modules/project"
+	"github.com/spaceuptech/space-cloud/space-cli/cmd/utils"
 )
 
 // GenerateService creates a service struct
